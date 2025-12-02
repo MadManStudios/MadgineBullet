@@ -2,8 +2,6 @@
 
 #include "Madgine/scene/entity/entitycomponent.h"
 
-#include "Madgine/scene/entity/entitycomponentptr.h"
-
 #include "collisionshapemanager.h"
 
 class btRigidBody;
@@ -16,7 +14,7 @@ namespace Physics {
 
         using Container = FreeListContainer<std::deque<Placeholder<0>>, Scene::Entity::EntityComponentFreeListConfig<RigidBody>>;
 
-        RigidBody(Scene::Entity::Entity *entity);
+        RigidBody(Scene::Entity::Entity &entity);
         RigidBody(RigidBody &&other);
         ~RigidBody();
 
@@ -80,10 +78,5 @@ namespace Physics {
         std::unique_ptr<Data> mData;
     };
 
-    using RigidBodyPtr = Scene::Entity::EntityComponentPtr<RigidBody>;
-
 }
 }
-
-REGISTER_TYPE(Engine::Physics::RigidBody)
-REGISTER_TYPE(Engine::Scene::Entity::EntityComponentList<Engine::Physics::RigidBody>)

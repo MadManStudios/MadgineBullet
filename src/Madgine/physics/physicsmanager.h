@@ -95,5 +95,3 @@ namespace Physics {
 
 }
 }
-
-REGISTER_TYPE(Engine::Physics::PhysicsManager)

@@ -16,7 +16,7 @@
 
 #include "rigidbodydata.h"
 
-ENTITYCOMPONENT_IMPL(RigidBody, Engine::Physics::RigidBody)
+NAMED_UNIQUECOMPONENT(RigidBody, Engine::Physics::RigidBody)
 
 METATABLE_BEGIN(Engine::Physics::RigidBody)
 PROPERTY(Mass, mass, setMass)
@@ -46,7 +46,7 @@ SERIALIZETABLE_END(Engine::Physics::RigidBody)
 namespace Engine {
 namespace Physics {
 
-    RigidBody::RigidBody(Scene::Entity::Entity *entity)
+    RigidBody::RigidBody(Scene::Entity::Entity &entity)
         : Scene::Entity::EntityComponent<RigidBody>(entity)
     {
         mData = std::make_unique<Data>(this);
@@ -75,11 +75,11 @@ namespace Physics {
 
     void RigidBody::init()
     {
-        Scene::Entity::Transform *transform = entity()->addComponent<Scene::Entity::Transform>();
+        Scene::Entity::Transform *transform = entity().addComponent<Scene::Entity::Transform>();
 
         mData->mTransform = transform;
 
-        mData->mMgr = &entity()->sceneMgr().getComponent<PhysicsManager>();
+        mData->mMgr = &entity().sceneMgr().getComponent<PhysicsManager>();
 
         get()->saveKinematicState(1.0f);
         get()->saveKinematicState(1.0f);

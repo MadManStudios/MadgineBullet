@@ -22,7 +22,7 @@
 #include "BulletSoftBody/btSoftBodyHelpers.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 
-ENTITYCOMPONENT_IMPL(SoftBodySkeleton, Engine::Physics::SoftBodySkeleton)
+NAMED_UNIQUECOMPONENT(SoftBodySkeleton, Engine::Physics::SoftBodySkeleton)
 
 METATABLE_BEGIN(Engine::Physics::SoftBodySkeleton)
 /* PROPERTY(Mass, mass, setMass)
@@ -50,11 +50,11 @@ namespace Physics {
 
         Data() = default;
 
-        void setup(SoftBodySkeleton *component, PhysicsManager *mgr, Scene::Entity::Transform *transform)
+        void setup(SoftBodySkeleton &component, PhysicsManager &mgr, Scene::Entity::Transform *transform)
         {
-            mMgr = mgr;
+            mMgr = &mgr;
             mTransform = transform;
-            mSoftBody = std::unique_ptr<btSoftBody> { btSoftBodyHelpers::CreateRope(mgr->worldInfo(), { 0, 0, 0 }, { 0, 0.5f, 0 }, 5, 0) };
+            mSoftBody = std::unique_ptr<btSoftBody> { btSoftBodyHelpers::CreateRope(mgr.worldInfo(), { 0, 0, 0 }, { 0, 0.5f, 0 }, 5, 0) };
         }
 
         void add()
@@ -84,7 +84,7 @@ namespace Physics {
         std::unique_ptr<btSoftBody> mSoftBody;
     };
 
-    SoftBodySkeleton::SoftBodySkeleton(Scene::Entity::Entity *entity)
+    SoftBodySkeleton::SoftBodySkeleton(Scene::Entity::Entity &entity)
         : Scene::Entity::EntityComponent<SoftBodySkeleton>(entity)        
     {
         mData = std::make_unique<Data>();
@@ -98,7 +98,7 @@ namespace Physics {
 
     void SoftBodySkeleton::init()
     {
-        mData->setup(this, &entity()->sceneMgr().getComponent<PhysicsManager>(), entity()->addComponent<Scene::Entity::Transform>());
+        mData->setup(*this, entity().sceneMgr().getComponent<PhysicsManager>(), entity().addComponent<Scene::Entity::Transform>());
 
         mData->add();
     }

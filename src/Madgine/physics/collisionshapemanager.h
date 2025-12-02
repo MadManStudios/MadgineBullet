@@ -7,86 +7,87 @@
 class btCollisionShape;
 
 namespace Engine {
-namespace Physics {
+	namespace Physics {
 
-    struct CollisionShapeInstance;
+		struct CollisionShapeInstance;
 
-    struct CollisionShape;
+		struct CollisionShape;
 
-    struct CollisionShapeInstanceDeleter {
-        void operator()(CollisionShapeInstance *);
-    };
+		struct CollisionShapeInstanceDeleter {
+			void operator()(CollisionShapeInstance*);
+		};
 
-    using CollisionShapeInstancePtr = std::unique_ptr<CollisionShapeInstance, CollisionShapeInstanceDeleter>;
+		using CollisionShapeInstancePtr = std::unique_ptr<CollisionShapeInstance, CollisionShapeInstanceDeleter>;
 
-    struct CollisionShapeManager : Resources::ResourceLoader<CollisionShapeManager, std::unique_ptr<CollisionShape>> {
+		struct CollisionShapeManager : Resources::ResourceLoader<CollisionShapeManager, std::unique_ptr<CollisionShape>> {
 
-        struct InstanceHandle {
+			struct InstanceHandle {
 
-            InstanceHandle() = default;
-            InstanceHandle(Handle shape);
-            InstanceHandle(Resource *res);
-            InstanceHandle(const InstanceHandle &);
-            InstanceHandle(InstanceHandle &&other) noexcept = default;
+				InstanceHandle() = default;
+				InstanceHandle(Handle shape);
+				InstanceHandle(Resource* res);
+				InstanceHandle(const InstanceHandle&);
+				InstanceHandle(InstanceHandle&& other) noexcept = default;
 
-            InstanceHandle &operator=(const InstanceHandle &other);
-            InstanceHandle &operator=(InstanceHandle &&other);
+				InstanceHandle& operator=(const InstanceHandle& other);
+				InstanceHandle& operator=(InstanceHandle&& other);
 
-            void load(std::string_view name, CollisionShapeManager *loader = &CollisionShapeManager::getSingleton());
-            void reset();
+				void load(std::string_view name, CollisionShapeManager* loader = &CollisionShapeManager::getSingleton());
+				void reset();
 
-            Resource *resource() const;
+				Resource* resource() const;
 
-            CollisionShapeInstance *operator->() const;
+				CollisionShapeInstance* operator->() const;
 
-            operator CollisionShapeInstance *() const;
+				operator CollisionShapeInstance* () const;
 
-            friend struct Serialize::Operations<InstanceHandle>;
+				friend struct Serialize::Operations<InstanceHandle>;
 
-            friend Serialize::StreamResult tag_invoke(Serialize::apply_map_t, InstanceHandle& handle, Serialize::FormattedSerializeStream&, bool success, const CallerHierarchyBasePtr&) {
-                return {};
-            }
+				friend Serialize::StreamResult tag_invoke(Serialize::apply_map_t, InstanceHandle& handle, Serialize::CallerHierarchyFormattedSerializeStream, bool success) {
+					return {};
+				}
 
-        private:
-            CollisionShapeInstancePtr mInstance;
-        };
+				template <typename... Configs>
+				friend void tag_invoke(Serialize::set_active_t<Configs...>, InstanceHandle& handle, bool active, bool existenceChanged, const CallerHierarchyBasePtr&) {}
 
-        CollisionShapeManager();
+			private:
+				CollisionShapeInstancePtr mInstance;
+			};
 
-        Threading::ImmediateTask<bool> loadImpl(std::unique_ptr<CollisionShape> &shape, ResourceDataInfo &info);
-        void unloadImpl(std::unique_ptr<CollisionShape> &shape);
-    };
+			CollisionShapeManager();
 
-    struct CollisionShape {
-        virtual ~CollisionShape() = default;
-        virtual CollisionShapeInstancePtr create(typename CollisionShapeManager::Handle shape) = 0;
-    };
+			Threading::ImmediateTask<bool> loadImpl(std::unique_ptr<CollisionShape>& shape, ResourceDataInfo& info);
+			void unloadImpl(std::unique_ptr<CollisionShape>& shape);
+		};
 
-    struct CollisionShapeInstance : Serialize::VirtualSerializableUnitBase<VirtualScopeBase<>, Serialize::SerializableUnitBase> {
-        CollisionShapeInstance(typename CollisionShapeManager::Handle shape = {});
-        virtual ~CollisionShapeInstance();
-        virtual btCollisionShape *get() = 0;
-        virtual void destroy() = 0;
-        virtual CollisionShapeInstancePtr clone() = 0;
+		struct CollisionShape {
+			virtual ~CollisionShape() = default;
+			virtual CollisionShapeInstancePtr create(typename CollisionShapeManager::Handle shape) = 0;
+		};
 
-        CollisionShapeManager::Resource *resource() const;
+		struct CollisionShapeInstance : Serialize::VirtualSerializableUnitBase<VirtualScopeBase<>, Serialize::SerializableUnitBase> {
+			CollisionShapeInstance(typename CollisionShapeManager::Handle shape = {});
+			virtual ~CollisionShapeInstance();
+			virtual btCollisionShape* get() = 0;
+			virtual void destroy() = 0;
+			virtual CollisionShapeInstancePtr clone() = 0;
 
-        bool available() const;
+			CollisionShapeManager::Resource* resource() const;
 
-    protected:
-        typename CollisionShapeManager::Handle mHandle;
-    };
+			bool available() const;
 
+		protected:
+			typename CollisionShapeManager::Handle mHandle;
+		};
+
+	}
+	namespace Serialize {
+
+		template <>
+		struct Operations<Physics::CollisionShapeManager::InstanceHandle> {
+			static StreamResult read(CallerHierarchyFormattedSerializeStream in, Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr);
+			static void write(CallerHierarchyFormattedSerializeStream out, const Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr);
+			static StreamResult visitStream(CallerHierarchyFormattedSerializeStream in, const char* name, const StreamVisitor& visitor, size_t depth);
+		};
+	}
 }
-namespace Serialize {
-
-    template <>
-    struct Operations<Physics::CollisionShapeManager::InstanceHandle> {
-        static StreamResult read(FormattedSerializeStream &in, Physics::CollisionShapeManager::InstanceHandle &handle, const char *name = nullptr);
-        static void write(FormattedSerializeStream &out, const Physics::CollisionShapeManager::InstanceHandle &handle, const char *name = nullptr);
-        static StreamResult visitStream(FormattedSerializeStream &in, const char *name, const StreamVisitor &visitor);
-    };
-}
-}
-
-REGISTER_TYPE(Engine::Physics::CollisionShapeManager)
