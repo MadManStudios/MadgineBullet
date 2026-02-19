@@ -504,7 +504,7 @@ namespace Engine {
 			if (!co_await mesh.load(info.resource()->name()))
 				co_return false;
 
-			meshShape->setMesh(mesh->mVertices, mesh->mVertexSize);
+			meshShape->setMesh(mesh->mVertices, mesh->mFormat.stride());
 
 			co_return true;
 		}
