@@ -11,40 +11,11 @@
 namespace Engine {
 namespace Physics {
 
-    RigidBody::Data::Data(RigidBody *component, Scene::Entity::Transform *transform)
-        : mRigidBody(btRigidBody::btRigidBodyConstructionInfo { 0.0f, this, nullptr, { 0.0f, 0.0f, 0.0f } })
-        , mTransform(transform)
-    {
+    RigidBody::Data::Data(RigidBody *component)
+        : mRigidBody(btRigidBody::btRigidBodyConstructionInfo { 0.0f, nullptr, nullptr, { 0.0f, 0.0f, 0.0f } })
+    {        
         mRigidBody.setUserPointer(component);
         mRigidBody.setUserIndex(0);
-    }
-
-    void RigidBody::Data::setWorldTransform(const btTransform &transform)
-    {
-        if (mTransform) {
-            Matrix4 p = mTransform->parentMatrix();
-
-            btQuaternion q = transform.getRotation();
-
-            Matrix4 m = p.Inverse() * TransformMatrix(Vector3 { transform.getOrigin() }, Vector3::UNIT_SCALE, Quaternion { q.x(), q.y(), q.z(), q.w() });
-
-            std::tie(mTransform->mPosition, mTransform->mScale, mTransform->mOrientation) = DecomposeTransformMatrix(m);
-        }
-    }
-
-    void RigidBody::Data::getWorldTransform(btTransform &transform) const
-    {
-        if (mTransform) {
-            Matrix4 m = mTransform->worldMatrix();
-
-            Vector3 pos;
-            Vector3 scale;
-            Quaternion orientation;
-            std::tie(pos, scale, orientation) = DecomposeTransformMatrix(m);
-            transform = btTransform { { orientation.x, orientation.y, orientation.z, orientation.w }, { pos.x, pos.y, pos.z } };
-        } else {
-            transform = btTransform { { 0.0f, 0.0f, 0.0f, 1.0f } };
-        }
     }
 
     uint16_t RigidBody::Data::collisionGroup() const
@@ -73,7 +44,7 @@ namespace Physics {
 
     void RigidBody::Data::add()
     {
-        if (mMgr && mRigidBody.getCollisionShape() && !mRigidBody.getUserIndex()) {
+        if (mMgr && mMgr->isInitialized() && mRigidBody.getCollisionShape() && !mRigidBody.getUserIndex()) {
             mMgr->world().addRigidBody(&mRigidBody, mCollisionGroup, mCollisionMask);
             mRigidBody.activate(true);
             mRigidBody.setUserIndex(1);

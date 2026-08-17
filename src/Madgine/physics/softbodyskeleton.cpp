@@ -9,7 +9,7 @@
 
 #include "Modules/uniquecomponent/uniquecomponentcollector.h"
 
-#include "Meta/keyvalue/metatable_impl.h"
+#include "Meta/reflect/metatable_impl.h"
 #include "Meta/serialize/serializetable_impl.h"
 
 #include "Madgine/scene/entity/entity.h"
@@ -50,10 +50,9 @@ namespace Physics {
 
         Data() = default;
 
-        void setup(SoftBodySkeleton &component, PhysicsManager &mgr, Scene::Entity::Transform *transform)
+        void setup(SoftBodySkeleton &component, PhysicsManager &mgr)
         {
             mMgr = &mgr;
-            mTransform = transform;
             mSoftBody = std::unique_ptr<btSoftBody> { btSoftBodyHelpers::CreateRope(mgr.worldInfo(), { 0, 0, 0 }, { 0, 0.5f, 0 }, 5, 0) };
         }
 
@@ -78,14 +77,17 @@ namespace Physics {
             }
         }
 
-        Scene::Entity::Transform *mTransform = nullptr;
         PhysicsManager *mMgr = nullptr;
 
         std::unique_ptr<btSoftBody> mSoftBody;
     };
 
-    SoftBodySkeleton::SoftBodySkeleton(Scene::Entity::Entity &entity)
-        : Scene::Entity::EntityComponent<SoftBodySkeleton>(entity)        
+    SoftBodySkeleton::SoftBodySkeleton()    
+    {
+        mData = std::make_unique<Data>();
+    }
+
+    SoftBodySkeleton::SoftBodySkeleton(const SoftBodySkeleton& other)
     {
         mData = std::make_unique<Data>();
     }
@@ -96,9 +98,14 @@ namespace Physics {
 
     SoftBodySkeleton &SoftBodySkeleton::operator=(SoftBodySkeleton &&) = default;
 
-    void SoftBodySkeleton::init()
+    SoftBodySkeleton& Engine::Physics::SoftBodySkeleton::operator=(const SoftBodySkeleton& other)
     {
-        mData->setup(*this, entity().sceneMgr().getComponent<PhysicsManager>(), entity().addComponent<Scene::Entity::Transform>());
+        return *this;
+    }
+
+    void SoftBodySkeleton::init(Scene::Entity::Entity &entity)
+    {
+        mData->setup(*this, entity.sceneMgr().getComponent<PhysicsManager>());
 
         mData->add();
     }
@@ -125,7 +132,7 @@ namespace Physics {
         get()->activate(true);
     }
 
-    void SoftBodySkeleton::attach(RigidBody *rigidbody, size_t index, const Engine::Vector3 &offset)
+    void SoftBodySkeleton::attach(RigidBody *rigidbody, size_t index, const Math::Vector3 &offset)
     {
         bool wasAdded = get()->getUserIndex();
         if (wasAdded && !rigidbody->get()->getUserIndex())

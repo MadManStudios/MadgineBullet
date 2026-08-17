@@ -7,7 +7,7 @@
 
 #include "Modules/uniquecomponent/uniquecomponentcollector.h"
 
-#include "Meta/keyvalue/metatable_impl.h"
+#include "Meta/reflect/metatable_impl.h"
 #include "Meta/serialize/serializetable_impl.h"
 
 #include "Madgine/scene/entity/entity.h"
@@ -15,6 +15,7 @@
 #include "rigidbody.h"
 
 #include "rigidbodydata.h"
+#include "rigidbodystorage.h"
 
 NAMED_UNIQUECOMPONENT(RigidBody, Engine::Physics::RigidBody)
 
@@ -24,6 +25,8 @@ PROPERTY(Friction, friction, setFriction)
 PROPERTY(Kinematic, kinematic, setKinematic)
 PROPERTY(LinearFactor, linearFactor, setLinearFactor)
 PROPERTY(AngularFactor, angularFactor, setAngularFactor)
+PROPERTY(Velocity, velocity, setVelocity)
+PROPERTY(AngularVelocity, angularVelocity, setAngularVelocity)
 PROPERTY(Shape, getShape, setShape)
 READONLY_PROPERTY(ShapeData, getShapeInstance)
 PROPERTY(Ghost, ghost, setGhost)
@@ -44,269 +47,279 @@ ENCAPSULATED_FIELD(CollisionMask, collisionMask, setCollisionMask)
 SERIALIZETABLE_END(Engine::Physics::RigidBody)
 
 namespace Engine {
-namespace Physics {
+	namespace Physics {
 
-    RigidBody::RigidBody(Scene::Entity::Entity &entity)
-        : Scene::Entity::EntityComponent<RigidBody>(entity)
-    {
-        mData = std::make_unique<Data>(this);
-    }
+		RigidBody::RigidBody()
+		{
+			mData = std::make_unique<Data>(this);
+		}
 
-    RigidBody::RigidBody(RigidBody &&other)
-        : NamedComponent(std::move(other))
-        , mShapeHandle(std::move(other.mShapeHandle))
-        , mData(std::move(other.mData))
-    {
-        if (mData)
-            get()->setUserPointer(this);
-    }
+		Engine::Physics::RigidBody::RigidBody(const RigidBody& other)
+		{
+		}
 
-    RigidBody::~RigidBody() = default;
+		RigidBody::RigidBody(RigidBody&& other)
+			: NamedComponent(std::move(other))
+			, mShapeHandle(std::move(other.mShapeHandle))
+			, mData(std::move(other.mData))
+		{
+			if (mData)
+				get()->setUserPointer(this);
+		}
 
-    RigidBody &RigidBody::operator=(RigidBody &&other)
-    {
-        NamedComponent::operator=(std::move(other));
-        std::swap(mShapeHandle, other.mShapeHandle);
-        std::swap(mData, other.mData);
-        if (mData)
-            get()->setUserPointer(this);
-        return *this;
-    }
+		RigidBody::~RigidBody() = default;
 
-    void RigidBody::init()
-    {
-        Scene::Entity::Transform *transform = entity().addComponent<Scene::Entity::Transform>();
+		RigidBody& Engine::Physics::RigidBody::operator=(const RigidBody& other)
+		{
+			NamedComponent::operator=(other);
+			mShapeHandle = other.mShapeHandle;
+			return *this;
+		}
 
-        mData->mTransform = transform;
+		RigidBody& RigidBody::operator=(RigidBody&& other)
+		{
+			NamedComponent::operator=(std::move(other));
+			std::swap(mShapeHandle, other.mShapeHandle);
+			std::swap(mData, other.mData);
+			if (mData)
+				get()->setUserPointer(this);
+			return *this;
+		}
 
-        mData->mMgr = &entity().sceneMgr().getComponent<PhysicsManager>();
+		void RigidBody::init(Scene::Entity::Entity& entity)
+		{
+			mData->mMgr = &entity.sceneMgr().getComponent<PhysicsManager>();
 
-        get()->saveKinematicState(1.0f);
-        get()->saveKinematicState(1.0f);
+			get()->saveKinematicState(1.0f);
+			get()->saveKinematicState(1.0f);
 
-        if (mShapeHandle && mShapeHandle->available()) {
-            get()->setCollisionShape(mShapeHandle->get());
-        }
+			if (mShapeHandle && mShapeHandle->available()) {
+				get()->setCollisionShape(mShapeHandle->get());
+				float mass = get()->getMass();
+				btVector3 inertia;
+				mShapeHandle->get()->calculateLocalInertia(mass, inertia);
+				get()->setMassProps(mass, inertia);
+			}
 
-        mData->add();
-    }
+			mData->add();
+		}
 
-    void RigidBody::finalize()
-    {
-        mData->remove();
-    }
+		void RigidBody::finalize()
+		{
+			mData->remove();
+		}
 
-    void RigidBody::update()
-    {
-        if (mShapeHandle && mShapeHandle->available() && !get()->getCollisionShape()) {
-            get()->setCollisionShape(mShapeHandle->get());
-            float mass = get()->getMass();
-            btVector3 inertia;
-            mShapeHandle->get()->calculateLocalInertia(mass, inertia);
-            get()->setMassProps(mass, inertia);
-            mData->add();
-        }
-    }
+		void RigidBody::update()
+		{
+			if (mShapeHandle && mShapeHandle->available() && !get()->getCollisionShape()) {
+				get()->setCollisionShape(mShapeHandle->get());
+				float mass = get()->getMass();
+				btVector3 inertia;
+				mShapeHandle->get()->calculateLocalInertia(mass, inertia);
+				get()->setMassProps(mass, inertia);
+				mData->add();
+			}
+		}
 
-    btRigidBody *RigidBody::get()
-    {
-        return &mData->mRigidBody;
-    }
+		btRigidBody* RigidBody::get()
+		{
+			return &mData->mRigidBody;
+		}
 
-    const btRigidBody *RigidBody::get() const
-    {
-        return &mData->mRigidBody;
-    }
+		const btRigidBody* RigidBody::get() const
+		{
+			return &mData->mRigidBody;
+		}
 
-    void RigidBody::activate()
-    {
-        get()->activate(true);
-    }
+		void RigidBody::activate()
+		{
+			get()->activate(true);
+		}
 
-    Scene::Entity::Transform *RigidBody::transform()
-    {
-        return mData->mTransform;
-    }
+		float RigidBody::mass() const
+		{
+			return get()->getMass();
+		}
 
-    float RigidBody::mass() const
-    {
-        return get()->getMass();
-    }
+		void RigidBody::setMass(float mass)
+		{
+			float oldMass = get()->getMass();
+			if (mass != oldMass) {
+				if (get()->getCollisionShape()) {
+					mData->remove();
+					btVector3 inertia;
+					get()->getCollisionShape()->calculateLocalInertia(mass, inertia);
+					get()->setMassProps(mass, inertia);
+					mData->add();
+				}
+				else {
+					get()->setMassProps(mass, {});
+				}
+			}
+		}
 
-    void RigidBody::setMass(float mass)
-    {
-        float oldMass = get()->getMass();
-        if (mass != oldMass) {
-            if (get()->getCollisionShape()) {
-                mData->remove();
-                btVector3 inertia;
-                get()->getCollisionShape()->calculateLocalInertia(mass, inertia);
-                get()->setMassProps(mass, inertia);
-                mData->add();
-            } else {
-                get()->setMassProps(mass, {});
-            }
-        }
-    }
+		bool RigidBody::kinematic() const
+		{
+			return get()->getCollisionFlags() & btCollisionObject::CF_KINEMATIC_OBJECT;
+		}
 
-    bool RigidBody::kinematic() const
-    {
-        return get()->getCollisionFlags() & btCollisionObject::CF_KINEMATIC_OBJECT;
-    }
+		void RigidBody::setKinematic(bool kinematic)
+		{
+			if (kinematic) {
+				get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+				get()->setActivationState(DISABLE_DEACTIVATION);
+				get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
+			}
+			else {
+				get()->setCollisionFlags(get()->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
+				get()->forceActivationState(ISLAND_SLEEPING);
+				if (get()->getMass() > 0) {
+					mData->remove();
+					mData->add();
+				}
+			}
+		}
 
-    void RigidBody::setKinematic(bool kinematic)
-    {
-        if (kinematic) {
-            get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
-            get()->setActivationState(DISABLE_DEACTIVATION);
-            get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
-        } else {
-            get()->setCollisionFlags(get()->getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
-            get()->forceActivationState(ISLAND_SLEEPING);
-            if (get()->getMass() > 0) {
-                mData->remove();
-                mData->add();
-            }
-        }
-    }
+		bool RigidBody::ghost() const
+		{
+			return get()->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE;
+		}
 
-    bool RigidBody::ghost() const
-    {
-        return get()->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE;
-    }
+		void RigidBody::setGhost(bool ghost)
+		{
+			if (ghost) {
+				get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
+			}
+			else {
+				get()->setCollisionFlags(get()->getCollisionFlags() & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
+			}
+		}
 
-    void RigidBody::setGhost(bool ghost)
-    {
-        if (ghost) {
-            get()->setCollisionFlags(get()->getCollisionFlags() | btCollisionObject::CF_NO_CONTACT_RESPONSE);
-        } else {
-            get()->setCollisionFlags(get()->getCollisionFlags() & ~btCollisionObject::CF_NO_CONTACT_RESPONSE);
-        }
-    }
+		float RigidBody::friction() const
+		{
+			return get()->getFriction();
+		}
 
-    float RigidBody::friction() const
-    {
-        return get()->getFriction();
-    }
+		void RigidBody::setFriction(float friction)
+		{
+			get()->setFriction(friction);
+		}
 
-    void RigidBody::setFriction(float friction)
-    {
-        get()->setFriction(friction);
-    }
+		Math::Vector3 RigidBody::linearFactor() const
+		{
+			return get()->getLinearFactor().m_floats;
+		}
 
-    Vector3 RigidBody::linearFactor() const
-    {
-        return get()->getLinearFactor().m_floats;
-    }
+		void RigidBody::setLinearFactor(const Math::Vector3& factor)
+		{
+			get()->setLinearFactor({ factor.x, factor.y, factor.z });
+		}
 
-    void RigidBody::setLinearFactor(const Vector3 &factor)
-    {
-        get()->setLinearFactor({ factor.x, factor.y, factor.z });
-    }
+		Math::Vector3 RigidBody::angularFactor() const
+		{
+			return get()->getAngularFactor().m_floats;
+		}
 
-    Vector3 RigidBody::angularFactor() const
-    {
-        return get()->getAngularFactor().m_floats;
-    }
+		void RigidBody::setAngularFactor(const Math::Vector3& factor)
+		{
+			get()->setAngularFactor({ factor.x, factor.y, factor.z });
+		}
 
-    void RigidBody::setAngularFactor(const Vector3 &factor)
-    {
-        get()->setAngularFactor({ factor.x, factor.y, factor.z });
-    }
+		Math::Vector3 RigidBody::angularVelocity() const
+		{
+			return get()->getAngularVelocity().m_floats;
+		}
 
-    Vector3 RigidBody::angularVelocity() const
-    {
-        return get()->getAngularVelocity().m_floats;
-    }
+		void RigidBody::setAngularVelocity(const Math::Vector3& v)
+		{
+			get()->setAngularVelocity({ v.x, v.y, v.z });
+		}
 
-    void RigidBody::setAngularVelocity(const Vector3 &v)
-    {
-        get()->setAngularVelocity({ v.x, v.y, v.z });
-    }
+		Math::Vector3 RigidBody::velocity() const
+		{
+			return get()->getLinearVelocity().m_floats;
+		}
 
-    Vector3 RigidBody::velocity() const
-    {
-        return get()->getLinearVelocity().m_floats;
-    }
+		void RigidBody::setVelocity(const Math::Vector3& v)
+		{
+			get()->setLinearVelocity({ v.x, v.y, v.z });
+		}
 
-    void RigidBody::setVelocity(const Vector3 &v)
-    {
-        get()->setLinearVelocity({ v.x, v.y, v.z });
-    }
+		void RigidBody::setOrientation(const Math::Quaternion& q)
+		{
+			btTransform t = get()->getWorldTransform();
+			t.setRotation({ q.x, q.y, q.z, q.w });
+			get()->setWorldTransform(t);
+		}
 
-    void RigidBody::setOrientation(const Quaternion &q)
-    {
-        btTransform t = get()->getWorldTransform();
-        t.setRotation({ q.x, q.y, q.z, q.w });
-        get()->setWorldTransform(t);
-    }
+		uint16_t RigidBody::collisionGroup() const
+		{
+			return mData->collisionGroup();
+		}
 
-    uint16_t RigidBody::collisionGroup() const
-    {
-        return mData->collisionGroup();
-    }
+		void RigidBody::setCollisionGroup(uint16_t group)
+		{
+			mData->setCollisionGroup(group);
+		}
 
-    void RigidBody::setCollisionGroup(uint16_t group)
-    {
-        mData->setCollisionGroup(group);
-    }
+		uint16_t RigidBody::collisionMask() const
+		{
+			return mData->collisionMask();
+		}
 
-    uint16_t RigidBody::collisionMask() const
-    {
-        return mData->collisionMask();
-    }
+		void RigidBody::setCollisionMask(uint16_t mask)
+		{
+			mData->setCollisionMask(mask);
+		}
 
-    void RigidBody::setCollisionMask(uint16_t mask)
-    {
-        mData->setCollisionMask(mask);
-    }
+		void RigidBody::setShape(typename CollisionShapeManager::Handle handle)
+		{
+			mData->remove();
 
-    void RigidBody::setShape(typename CollisionShapeManager::Handle handle)
-    {
-        mData->remove();
+			mShapeHandle = std::move(handle);
+			if (mShapeHandle->available()) {
+				get()->setCollisionShape(mShapeHandle->get());
+				btVector3 inertia;
+				get()->getCollisionShape()->calculateLocalInertia(mass(), inertia);
+				get()->setMassProps(mass(), inertia);
+				mData->add();
+			}
+			else {
+				get()->setCollisionShape(nullptr);
+			}
+		}
 
-        mShapeHandle = std::move(handle);
-        if (mShapeHandle->available()) {
-            get()->setCollisionShape(mShapeHandle->get());
-            btVector3 inertia;
-            get()->getCollisionShape()->calculateLocalInertia(mass(), inertia);
-            get()->setMassProps(mass(), inertia);
-            mData->add();
-        } else {
-            get()->setCollisionShape(nullptr);
-        }
-    }
+		void RigidBody::setShapeName(std::string_view name)
+		{
+			mData->remove();
 
-    void RigidBody::setShapeName(std::string_view name)
-    {
-        mData->remove();
+			mShapeHandle.load(name);
+			if (mShapeHandle->available()) {
+				get()->setCollisionShape(mShapeHandle->get());
+				btVector3 inertia;
+				get()->getCollisionShape()->calculateLocalInertia(mass(), inertia);
+				get()->setMassProps(mass(), inertia);
+				mData->add();
+			}
+			else {
+				get()->setCollisionShape(nullptr);
+			}
+		}
 
-        mShapeHandle.load(name);
-        if (mShapeHandle->available()) {
-            get()->setCollisionShape(mShapeHandle->get());
-            btVector3 inertia;
-            get()->getCollisionShape()->calculateLocalInertia(mass(), inertia);
-            get()->setMassProps(mass(), inertia);
-            mData->add();
-        } else {
-            get()->setCollisionShape(nullptr);
-        }
-    }
+		CollisionShapeManager::Resource* RigidBody::getShape() const
+		{
+			return mShapeHandle ? mShapeHandle.resource() : nullptr;
+		}
 
-    CollisionShapeManager::Resource *RigidBody::getShape() const
-    {
-        return mShapeHandle ? mShapeHandle.resource() : nullptr;
-    }
+		CollisionShapeInstance* RigidBody::getShapeInstance() const
+		{
+			return mShapeHandle;
+		}
 
-    CollisionShapeInstance *RigidBody::getShapeInstance() const
-    {
-        return mShapeHandle;
-    }
+		PhysicsManager* RigidBody::mgr() const
+		{
+			return mData->mMgr;
+		}
 
-    PhysicsManager *RigidBody::mgr() const
-    {
-        return mData->mMgr;
-    }
-
-}
+	}
 }

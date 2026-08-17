@@ -2,8 +2,9 @@
 
 #include "collisionshapemanager.h"
 
-#include "Meta/keyvalue/metatable_impl.h"
+#include "Meta/reflect/metatable_impl.h"
 #include "Meta/serialize/serializetable_impl.h"
+#include "Meta/type/storageops_impl.h"
 
 #include "Madgine/meshloader/meshloader.h"
 
@@ -30,13 +31,13 @@ SERIALIZETABLE_END(Engine::Physics::CollisionShapeInstance)
 namespace Engine {
 	namespace Physics {
 
-		struct MeshShape : CollisionShape, Serialize::VirtualUnit<MeshShape, VirtualScope<MeshShape, CollisionShapeInstance>> {
+		struct MeshShape : CollisionShape, Serialize::VirtualUnit<MeshShape, Reflect::VirtualScope<MeshShape, CollisionShapeInstance>> {
 
 			~MeshShape()
 			{
 			}
 
-			void setMesh(const ByteBuffer& vertexData, size_t vertexSize)
+			void setMesh(const Memory::ByteBuffer& vertexData, size_t vertexSize)
 			{
 				mShape = btConvexHullShape(static_cast<const float*>(vertexData.mData), vertexData.mSize / vertexSize, vertexSize);
 			}
@@ -71,7 +72,7 @@ namespace Engine {
 			btConvexHullShape mShape;
 		};
 
-		struct BoxShapeInstance : Serialize::VirtualUnit<BoxShapeInstance, VirtualScope<BoxShapeInstance, CollisionShapeInstance>> {
+		struct BoxShapeInstance : Serialize::VirtualUnit<BoxShapeInstance, Reflect::VirtualScope<BoxShapeInstance, CollisionShapeInstance>> {
 			BoxShapeInstance(typename CollisionShapeManager::Handle shape)
 				: VirtualUnit(std::move(shape))
 				, mShape({ 0.5f, 0.5f, 0.5f })
@@ -93,12 +94,12 @@ namespace Engine {
 				return CollisionShapeInstancePtr{ new BoxShapeInstance(*this) };
 			}
 
-			Vector3 getHalfExtends() const
+			Math::Vector3 getHalfExtends() const
 			{
 				return mShape.getHalfExtentsWithoutMargin().m_floats;
 			}
 
-			void setHalfExtends(const Vector3& halfExtends)
+			void setHalfExtends(const Math::Vector3& halfExtends)
 			{
 				mShape.setImplicitShapeDimensions({ halfExtends.x, halfExtends.y, halfExtends.z });
 			}
@@ -114,7 +115,7 @@ namespace Engine {
 			}
 		};
 
-		struct PlaneShapeInstance : Serialize::VirtualUnit<PlaneShapeInstance, VirtualScope<PlaneShapeInstance, CollisionShapeInstance>> {
+		struct PlaneShapeInstance : Serialize::VirtualUnit<PlaneShapeInstance, Reflect::VirtualScope<PlaneShapeInstance, CollisionShapeInstance>> {
 			PlaneShapeInstance(typename CollisionShapeManager::Handle shape)
 				: VirtualUnit(std::move(shape))
 				, mShape({ 0, 1, 0 }, 0.0f)
@@ -147,7 +148,7 @@ namespace Engine {
 			}
 		};
 
-		struct CapsuleShapeInstance : Serialize::VirtualUnit<CapsuleShapeInstance, VirtualScope<CapsuleShapeInstance, CollisionShapeInstance>> {
+		struct CapsuleShapeInstance : Serialize::VirtualUnit<CapsuleShapeInstance, Reflect::VirtualScope<CapsuleShapeInstance, CollisionShapeInstance>> {
 			CapsuleShapeInstance(typename CollisionShapeManager::Handle shape)
 				: VirtualUnit(std::move(shape))
 				, mShape(0.5f, 2.0f)
@@ -201,7 +202,7 @@ namespace Engine {
 			}
 		};
 
-		struct SphereShapeInstance : Serialize::VirtualUnit<SphereShapeInstance, VirtualScope<SphereShapeInstance, CollisionShapeInstance>> {
+		struct SphereShapeInstance : Serialize::VirtualUnit<SphereShapeInstance, Reflect::VirtualScope<SphereShapeInstance, CollisionShapeInstance>> {
 			SphereShapeInstance(typename CollisionShapeManager::Handle shape)
 				: VirtualUnit(std::move(shape))
 				, mShape(0.1f)
@@ -245,7 +246,7 @@ namespace Engine {
 			}
 		};
 
-		struct ConeShapeInstance : Serialize::VirtualUnit<ConeShapeInstance, VirtualScope<ConeShapeInstance, CollisionShapeInstance>> {
+		struct ConeShapeInstance : Serialize::VirtualUnit<ConeShapeInstance, Reflect::VirtualScope<ConeShapeInstance, CollisionShapeInstance>> {
 			ConeShapeInstance(typename CollisionShapeManager::Handle shape)
 				: VirtualUnit(std::move(shape))
 				, mShape(0.1f, 0.1f)
@@ -308,7 +309,7 @@ namespace Engine {
 			}
 		};
 
-		struct CompoundShapeInstance : Serialize::VirtualUnit<CompoundShapeInstance, VirtualScope<CompoundShapeInstance, CollisionShapeInstance>> {
+		struct CompoundShapeInstance : Serialize::VirtualUnit<CompoundShapeInstance, Reflect::VirtualScope<CompoundShapeInstance, CollisionShapeInstance>> {
 
 			using VirtualUnit::VirtualUnit;
 
@@ -322,8 +323,8 @@ namespace Engine {
 			}
 
 			struct CompoundShapeElement {
-				Vector3 mPos;
-				Quaternion mOrientation;
+				Math::Vector3 mPos;
+				Math::Quaternion mOrientation;
 				CollisionShapeManager::InstanceHandle mShape;
 
 				CollisionShapeInstance* shape()
@@ -340,7 +341,7 @@ namespace Engine {
 					CompoundShapeElement& el = result[i];
 					const btTransform& t = mShape.getChildTransform(i);
 					el.mPos = t.getOrigin().m_floats;
-					el.mOrientation = Quaternion{ t.getRotation() };
+					el.mOrientation = Math::Quaternion{ t.getRotation() };
 					el.mShape = mChildren[i];
 				}
 				return result;
@@ -531,15 +532,15 @@ namespace Engine {
 
 	namespace Serialize {
 
-		StreamResult Operations<Physics::CollisionShapeManager::InstanceHandle>::read(CallerHierarchyFormattedSerializeStream in, Physics::CollisionShapeManager::InstanceHandle& handle, const char* name)
+		StreamResult Operations<Physics::CollisionShapeManager::InstanceHandle>::read(FormattedSerializeStream& in, Physics::CollisionShapeManager::InstanceHandle& handle, const char* name, ContextPtr context)
 		{
 			std::string resName;
-			STREAM_PROPAGATE_ERROR(in.mStream.beginExtendedRead(name, 1));
+			STREAM_PROPAGATE_ERROR(in.beginExtendedRead(name, 1));
 			STREAM_PROPAGATE_ERROR(Serialize::read(in, resName, "name"));
 			if (resName.empty()) {
 				handle.reset();
-				STREAM_PROPAGATE_ERROR(in.mStream.beginCompoundRead(name));
-				STREAM_PROPAGATE_ERROR(in.mStream.endCompoundRead(name));
+				STREAM_PROPAGATE_ERROR(in.beginCompoundRead(name));
+				STREAM_PROPAGATE_ERROR(in.endCompoundRead(name));
 			}
 			else {
 				handle.load(resName);
@@ -549,22 +550,22 @@ namespace Engine {
 			return {};
 		}
 
-		void Operations<Physics::CollisionShapeManager::InstanceHandle>::write(CallerHierarchyFormattedSerializeStream out, const Physics::CollisionShapeManager::InstanceHandle& handle, const char* name)
+		void Operations<Physics::CollisionShapeManager::InstanceHandle>::write(FormattedSerializeStream& out, const Physics::CollisionShapeManager::InstanceHandle& handle, const char* name, ContextPtr context)
 		{
 			bool hasShape = static_cast<bool>(handle.mInstance);
 			std::string_view resName = hasShape ? handle.mInstance->resource()->name() : "";
-			out.mStream.beginExtendedWrite(name, 1);
+			out.beginExtendedWrite(name, 1);
 			Serialize::write(out, resName, "name");
 			if (!hasShape) {
-				out.mStream.beginCompoundWrite(name);
-				out.mStream.endCompoundWrite(name);
+				out.beginCompoundWrite(name);
+				out.endCompoundWrite(name);
 			}
 			else {
 				Serialize::write(out, *handle.mInstance, name);
 			}
 		}
 
-		StreamResult Operations<Physics::CollisionShapeManager::InstanceHandle>::visitStream(CallerHierarchyFormattedSerializeStream in, const char* name, const StreamVisitor& visitor, size_t depth)
+		StreamResult Operations<Physics::CollisionShapeManager::InstanceHandle>::visitStream(FormattedSerializeStream& in, const char* name, const StreamVisitor& visitor, size_t depth)
 		{
 			throw 0;
 		}

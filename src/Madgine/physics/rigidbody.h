@@ -5,6 +5,7 @@
 #include "collisionshapemanager.h"
 
 class btRigidBody;
+class btMotionState;
 
 namespace Engine {
 namespace Physics {
@@ -12,15 +13,17 @@ namespace Physics {
     struct MADGINE_BULLET_EXPORT RigidBody : Scene::Entity::EntityComponent<RigidBody> {
         SERIALIZABLEUNIT(RigidBody)
 
-        using Container = FreeListContainer<std::deque<Placeholder<0>>, Scene::Entity::EntityComponentFreeListConfig<RigidBody>>;
+        using Container = Containers::FreeListContainer<std::deque<Placeholder<0>>, Scene::Entity::EntityComponentFreeListConfig<Placeholder<0>>>;
 
-        RigidBody(Scene::Entity::Entity &entity);
+        RigidBody();
+        RigidBody(const RigidBody& other);
         RigidBody(RigidBody &&other);
         ~RigidBody();
 
+        RigidBody& operator=(const RigidBody& other);
         RigidBody &operator=(RigidBody &&other);
 
-        void init();
+        void init(Scene::Entity::Entity& entity);
         void finalize();
 
         void update();
@@ -29,8 +32,6 @@ namespace Physics {
         const btRigidBody *get() const;
         void activate();
         
-        Scene::Entity::Transform *transform();
-
         float mass() const;
         void setMass(float mass);
 
@@ -43,19 +44,19 @@ namespace Physics {
         float friction() const;
         void setFriction(float friction);
 
-        Vector3 linearFactor() const;
-        void setLinearFactor(const Vector3 &factor);
+        Math::Vector3 linearFactor() const;
+        void setLinearFactor(const Math::Vector3 &factor);
 
-        Vector3 angularFactor() const;
-        void setAngularFactor(const Vector3 &factor);
+        Math::Vector3 angularFactor() const;
+        void setAngularFactor(const Math::Vector3 &factor);
 
-        Vector3 angularVelocity() const;
-        void setAngularVelocity(const Vector3 &v);
+        Math::Vector3 angularVelocity() const;
+        void setAngularVelocity(const Math::Vector3 &v);
 
-        Vector3 velocity() const;
-        void setVelocity(const Vector3 &v);
+        Math::Vector3 velocity() const;
+        void setVelocity(const Math::Vector3 &v);
 
-        void setOrientation(const Quaternion &q);
+        void setOrientation(const Math::Quaternion &q);
 
         uint16_t collisionGroup() const;
         void setCollisionGroup(uint16_t group);

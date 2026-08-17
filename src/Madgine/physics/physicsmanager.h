@@ -7,7 +7,7 @@
 
 #include "Meta/math/vector3.h"
 
-#include "Generic/intervalclock.h"
+#include "Generic/execution/intervalclock.h"
 
 #include "Modules/threading/customclock.h"
 
@@ -27,9 +27,9 @@ namespace Physics {
 
         ContactPoint(btManifoldPoint &point, const btCollisionObject *obj0, const btCollisionObject *obj1);
 
-        void setFriction(float motion, const Vector3 &dir, const Vector3 &dir2);
+        void setFriction(float motion, const Math::Vector3 &dir, const Math::Vector3 &dir2);
 
-        Vector3 normal1() const;
+        Math::Vector3 normal1() const;
 
     private:
         btManifoldPoint &mPoint;
@@ -90,7 +90,7 @@ namespace Physics {
 
         std::vector<PhysicsListener *> mListener;
 
-        IntervalClock<Threading::CustomTimepoint> mClock;
+        Execution::IntervalClock<Threading::CustomTimepoint> mClock;
     };
 
 }

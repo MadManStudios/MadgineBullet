@@ -4,7 +4,7 @@
 
 #include "imgui/imgui.h"
 
-#include "Meta/keyvalue/metatable_impl.h"
+#include "Meta/reflect/metatable_impl.h"
 #include "Meta/serialize/serializetable_impl.h"
 
 #include "Modules/uniquecomponent/uniquecomponentcollector.h"
@@ -97,12 +97,12 @@ namespace Engine {
 
 		void BulletDebug::drawLine(const btVector3& from, const btVector3& to, const btVector3& fromColor, const btVector3& toColor)
 		{
-			Im3D::Line(Vector3{ from }, Vector3{ to }, { .mColorA = { Color3 { fromColor }, 1 }, .mColorB = { Color3 { toColor }, 1 } });
+			Im3D::Line(Math::Vector3{ from }, Math::Vector3{ to }, { .mColorA = { Math::Color3 { fromColor }, 1 }, .mColorB = { Math::Color3 { toColor }, 1 } });
 		}
 
 		void BulletDebug::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
 		{
-			Im3D::Line(Vector3{ from }, Vector3{ to }, { .mColorA = { Color3 { color }, 1 } });
+			Im3D::Line(Math::Vector3{ from }, Math::Vector3{ to }, { .mColorA = { Math::Color3 { color }, 1 } });
 		}
 
 		void BulletDebug::drawSphere(const btVector3& p, btScalar radius, const btVector3& color)
@@ -117,7 +117,7 @@ namespace Engine {
 
 		void BulletDebug::drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color)
 		{
-			Im3D::Sphere(Vector3{ PointOnB }, distance + 0.01f, { .mColor = { Color3 { color }, 1 }, .mDetail = 0 });
+			Im3D::Sphere(Math::Vector3{ PointOnB }, distance + 0.01f, { .mColor = { Math::Color3 { color }, 1 }, .mDetail = 0 });
 		}
 
 		void BulletDebug::reportErrorWarning(const char* warningString)

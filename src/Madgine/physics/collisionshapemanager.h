@@ -43,12 +43,13 @@ namespace Engine {
 
 				friend struct Serialize::Operations<InstanceHandle>;
 
-				friend Serialize::StreamResult tag_invoke(Serialize::apply_map_t, InstanceHandle& handle, Serialize::CallerHierarchyFormattedSerializeStream, bool success) {
+				template <typename Context>
+				friend Serialize::StreamResult tag_invoke(const Serialize::apply_map_t &, InstanceHandle& handle, Serialize::FormattedSerializeStream&, bool success, Context &&) {
 					return {};
 				}
 
-				template <typename... Configs>
-				friend void tag_invoke(Serialize::set_active_t<Configs...>, InstanceHandle& handle, bool active, bool existenceChanged, const CallerHierarchyBasePtr&) {}
+				template <typename... Configs, typename Context>
+				friend void tag_invoke(Serialize::set_active_t<Configs...>, InstanceHandle& handle, bool active, bool existenceChanged, Context &&) {}
 
 			private:
 				CollisionShapeInstancePtr mInstance;
@@ -65,7 +66,7 @@ namespace Engine {
 			virtual CollisionShapeInstancePtr create(typename CollisionShapeManager::Handle shape) = 0;
 		};
 
-		struct CollisionShapeInstance : Serialize::VirtualSerializableUnitBase<VirtualScopeBase<>, Serialize::SerializableUnitBase> {
+		struct CollisionShapeInstance : Serialize::VirtualSerializableUnitBase<Reflect::VirtualScopeBase<>, Serialize::SerializableUnitBase> {
 			CollisionShapeInstance(typename CollisionShapeManager::Handle shape = {});
 			virtual ~CollisionShapeInstance();
 			virtual btCollisionShape* get() = 0;
@@ -85,9 +86,9 @@ namespace Engine {
 
 		template <>
 		struct Operations<Physics::CollisionShapeManager::InstanceHandle> {
-			static StreamResult read(CallerHierarchyFormattedSerializeStream in, Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr);
-			static void write(CallerHierarchyFormattedSerializeStream out, const Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr);
-			static StreamResult visitStream(CallerHierarchyFormattedSerializeStream in, const char* name, const StreamVisitor& visitor, size_t depth);
+			static StreamResult read(FormattedSerializeStream& in, Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr, ContextPtr context = {});
+			static void write(FormattedSerializeStream& out, const Physics::CollisionShapeManager::InstanceHandle& handle, const char* name = nullptr, ContextPtr context = {});
+			static StreamResult visitStream(FormattedSerializeStream& in, const char* name, const StreamVisitor& visitor, size_t depth);
 		};
 	}
 }

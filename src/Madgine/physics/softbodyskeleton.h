@@ -12,13 +12,15 @@ namespace Physics {
     struct MADGINE_BULLET_EXPORT SoftBodySkeleton : Scene::Entity::EntityComponent<SoftBodySkeleton> {
         SERIALIZABLEUNIT(SoftBodySkeleton)
 
-        SoftBodySkeleton(Scene::Entity::Entity &entity);
+        SoftBodySkeleton();
+        SoftBodySkeleton(const SoftBodySkeleton& other);
         SoftBodySkeleton(SoftBodySkeleton &&other);
         ~SoftBodySkeleton();
 
         SoftBodySkeleton &operator=(SoftBodySkeleton &&other);
+        SoftBodySkeleton& operator=(const SoftBodySkeleton &other);
 
-        void init();
+        void init(Scene::Entity::Entity& entity);
         void finalize();
 
         void update();
@@ -26,7 +28,7 @@ namespace Physics {
         btSoftBody *get();
         void activate();
 
-        void attach(RigidBody *rigidbody, size_t index, const Engine::Vector3 &offset = Engine::Vector3::ZERO);
+        void attach(RigidBody *rigidbody, size_t index, const Math::Vector3 &offset = Math::Vector3::ZERO);
 
         friend struct PhysicsManager;
 
